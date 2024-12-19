@@ -1,59 +1,94 @@
 import requests
 from bs4 import BeautifulSoup
+import validators
 
-# Prompt the user to enter the URL to crawl
-url = input("Enter the URL to crawl: ")
+def validate_url(url):
+    """Validate the given URL."""
+    if not validators.url(url):
+        raise ValueError("Invalid URL. Please enter a valid URL.")
 
-# Send a GET request to the URL and store the response
-response = requests.get(url)
+def extract_scripts(soup):
+    """Extract and print script sources."""
+    scripts = soup.find_all('script')
+    for script in scripts:
+        if script.has_attr('src'):
+            print("Script found:", script['src'])
 
-# Use BeautifulSoup to parse the HTML content of the response
-soup = BeautifulSoup(response.content, 'html.parser')
+def extract_forms(soup):
+    """Extract and print form details."""
+    forms = soup.find_all('form')
+    for form in forms:
+        print("Form found:")
+        print("Action URL:", form.get('action', 'N/A'))
+        print("Method:", form.get('method', 'N/A'))
+        fields = form.find_all('input')
+        for field in fields:
+            print("Field name:", field.get('name', 'N/A'))
+            print("Field type:", field.get('type', 'N/A'))
+            print("Field value:", field.get('value', 'N/A'))
 
-# Find all script tags in the HTML and extract the src attribute (if it exists)
-scripts = soup.find_all('script')
-for script in scripts:
-    if script.has_attr('src'):
-        print("Script found:", script['src'])
+def extract_metadata(soup):
+    """Extract and print metadata details."""
+    generator = soup.find('meta', {'name': 'generator'})
+    if generator:
+        print("Generator found:", generator.get('content', 'N/A'))
 
-# Find the meta generator tag in the HTML and extract the content attribute
-generator = soup.find('meta', {'name': 'generator'})
-if generator:
-    print("Generator found:", generator['content'])
+def extract_headers(response):
+    """Extract and print HTTP headers."""
+    server_header = response.headers.get('Server')
+    if server_header:
+        print("Server header found:", server_header)
+    x_powered_by = response.headers.get('X-Powered-By')
+    if x_powered_by:
+        print("X-Powered-By header found:", x_powered_by)
 
-# Check the server header of the response to find the web server and version
-server_header = response.headers.get('Server')
-if server_header:
-    print("Server header found:", server_header)
+def extract_cookies(response):
+    """Extract and print cookies."""
+    cookies = response.cookies
+    if cookies:
+        print("Cookies found:")
+        for cookie in cookies:
+            print(f"  {cookie.name} = {cookie.value}")
 
-# Check the X-Powered-By header of the response to find the server-side language and version
-x_powered_by_header = response.headers.get('X-Powered-By')
-if x_powered_by_header:
-    print("X-Powered-By header found:", x_powered_by_header)
+def extract_social_links(soup, social_media_urls):
+    """Extract and print social media links."""
+    links = soup.find_all('a')
+    for link in links:
+        href = link.get('href')
+        if href:
+            for url in social_media_urls:
+                if url in href:
+                    print("Social media link found:", href)
 
-# Check for cookies that were set by the website
-cookies = response.cookies
-if cookies:
-    print("Cookies found:", cookies)
+# Main script
+if __name__ == "__main__":
+    url = input("Enter the URL to crawl: ")
+    try:
+        validate_url(url)
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
 
-# Find all forms on the page and extract information about each one
-forms = soup.find_all('form')
-for form in forms:
-    print("Form found:")
-    print("Action URL:", form.get('action'))
-    print("Method:", form.get('method'))
+        soup = BeautifulSoup(response.content, 'html.parser')
 
-    # Find all form fields in the form and extract information about each one
-    fields = form.find_all('input')
-    for field in fields:
-        print("Field name:", field.get('name'))
-        print("Field type:", field.get('type'))
-        print("Field value:", field.get('value'))
+        # Extract information
+        print("\n--- Scripts ---")
+        extract_scripts(soup)
 
-# Check for links to social media accounts
-social_media_urls = ['facebook.com', 'twitter.com', 'instagram.com']
-links = soup.find_all('a')
-for link in links:
-    for url in social_media_urls:
-        if url in link.get('href'):
-            print("Social media link found:", link.get('href'))
+        print("\n--- Forms ---")
+        extract_forms(soup)
+
+        print("\n--- Metadata ---")
+        extract_metadata(soup)
+
+        print("\n--- HTTP Headers ---")
+        extract_headers(response)
+
+        print("\n--- Cookies ---")
+        extract_cookies(response)
+
+        print("\n--- Social Media Links ---")
+        social_media_urls = ['facebook.com', 'twitter.com', 'instagram.com']
+        extract_social_links(soup, social_media_urls)
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
